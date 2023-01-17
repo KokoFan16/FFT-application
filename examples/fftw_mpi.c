@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
                 FFTW_FORWARD, FFTW_ESTIMATE, &local_ni, 
                 &local_i_start, &local_no, &local_o_start);
 
-        printf("%d: %ld\n", rank, size);
+//        printf("%d: %ld\n", rank, size);
 
         // fftw_malloc is similar to malloc except that it properly aligns the array when SIMD instructions
         // fftw_complex is a double[2] composed of the real and imaginary parts of a complex number.
@@ -57,21 +57,24 @@ int main(int argc, char* argv[]) {
         // flag (FFTW_MEASURE or FFTW_ESTIMATE).
         // FFTW_MEASURE try to find the best way to do FFT with size n.
         // FFTW_ESTIMATE does not run any computation and just builds a reasonable plan.
+        // The plan creation is a collective function that must be called for all processes in the communicator.
+        // The in and out pointers refer only to a portion of the overall transform data as specified by the ‘local_size’ functions in the previous section.
+        // Data distribution: e.g., 100 × 200 complex DFT and 4 processes, each process will get a 25 × 200 slice of the data (depends on the rows).
+        // If the data cannot evenly distributed, the extra data will be assigned to process 0.
+        // This distribution can also be specified by using several routines.
         forward_plan = fftw_mpi_plan_dft_1d(N, x, y, MPI_COMM_WORLD, FFTW_FORWARD, FFTW_ESTIMATE);
-//
-//        start = MPI_Wtime();
-//        // start = omp_get_wtime();
-//        //--------------------------------------ALG STARTS HERE-----------------------------------
-//        fftw_execute(forward_plan);
-//        //--------------------------------------ALG ENDS  HERE-----------------------------------
-//        // end = omp_get_wtime() - start;
-//        end = MPI_Wtime() - start;
-//
-//        if(0 == comm_rank) {
-//            printf("%td %d %d %lf\n", N, comm_size, run, end);
-//        }
-//
-//        fftw_destroy_plan(forward_plan);
+
+        start = MPI_Wtime();
+        fftw_execute(forward_plan);
+        end = MPI_Wtime() - start;
+
+        if (rank == 0) {
+//            for(int i = 0; i < size; i++)
+//               printf("%f\n", y[i]);
+            printf("%td %td %d %lf\n", N, size, run, end);
+        }
+
+        fftw_destroy_plan(forward_plan);
     }
 
     fftw_mpi_cleanup(); // clean FFTW MPI Library

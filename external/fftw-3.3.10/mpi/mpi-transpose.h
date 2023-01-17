@@ -19,6 +19,7 @@
  */
 
 #include "ifftw-mpi.h"
+#include <stdio.h>
 
 /* tproblem.c: */
 typedef struct {

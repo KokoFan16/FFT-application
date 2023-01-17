@@ -48,6 +48,12 @@ typedef struct {
 
 static void apply(const plan *ego_, R *I, R *O)
 {
+	 int rank, nprocs;
+	 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	 MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+//	 if (rank == 0)
+//		 printf("%d: %s\n", rank, "transpose-alltoall");
+
      const P *ego = (const P *) ego_;
      plan_rdft *cld1, *cld2, *cld2rest, *cld3;
 
@@ -58,28 +64,49 @@ static void apply(const plan *ego_, R *I, R *O)
 	  
 	  /* transpose chunks globally */
 	  if (ego->equal_blocks)
+	  {
+		 if (rank == 0)
+			 printf("%d: %s\n", rank, "1--MPI_Alltoall");
+
+
 	       MPI_Alltoall(O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 			    I, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
-	  else
+	  }
+	  else {
+
+			 if (rank == 0)
+				 printf("%d: %s\n", rank, "2--MPI_Alltoallv");
+
 	       MPI_Alltoallv(O, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
 			     I, ego->recv_block_sizes, ego->recv_block_offsets,
 			     FFTW_MPI_TYPE,
 			     ego->comm);
+	  }
      }
      else { /* TRANSPOSED_IN, no need to destroy input */
 	  /* transpose chunks globally */
-	  if (ego->equal_blocks)
+	  if (ego->equal_blocks){
+
+		   double start = MPI_Wtime();
 	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
-	  else
+	       double end = MPI_Wtime();
+	       if (rank == 0)
+	    	   printf("3-MPI_Alltoall: %d, %f\n", nprocs, (end - start));
+	  }
+	  else {
+//		  	  if (rank == 0)
+//				 printf("%d: %s\n", rank, "4--MPI_Alltoallv");
+
 	       MPI_Alltoallv(I, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
 			     O, ego->recv_block_sizes, ego->recv_block_offsets,
 			     FFTW_MPI_TYPE,
 			     ego->comm);
+	  }
 	  I = O; /* final transpose (if any) is in-place */
      }
      
