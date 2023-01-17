@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
     ptrdiff_t size;
     ptrdiff_t local_ni, local_i_start, local_no, local_o_start;
 
-    int RUNS = 1;
+    int RUNS = 20;
     double start, end;
     
     MPI_Init(&argc, &argv);
