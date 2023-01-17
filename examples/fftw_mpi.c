@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
     ptrdiff_t size;
     ptrdiff_t local_ni, local_i_start, local_no, local_o_start;
 
-    int RUNS = 1;
+    int RUNS = 20;
     double start, end;
     
     MPI_Init(&argc, &argv);
@@ -35,7 +35,10 @@ int main(int argc, char* argv[]) {
 
     fftw_mpi_init(); // initial FFTW MPI Library
 
-    for(int run=0; run<RUNS; run++) {
+    for(int run = 0; run < RUNS; run++) {
+
+    	start = MPI_Wtime();
+
         size = fftw_mpi_local_size_1d(N, MPI_COMM_WORLD, 
                 FFTW_FORWARD, FFTW_ESTIMATE, &local_ni, 
                 &local_i_start, &local_no, &local_o_start);
@@ -64,7 +67,6 @@ int main(int argc, char* argv[]) {
         // This distribution can also be specified by using several routines.
         forward_plan = fftw_mpi_plan_dft_1d(N, x, y, MPI_COMM_WORLD, FFTW_FORWARD, FFTW_ESTIMATE);
 
-        start = MPI_Wtime();
         fftw_execute(forward_plan);
         end = MPI_Wtime() - start;
 
