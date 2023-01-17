@@ -24,6 +24,8 @@
 #include "mpi-transpose.h"
 #include <string.h>
 
+int count = 0;
+
 typedef struct {
      solver super;
      int copy_transposed_in; /* whether to copy the input for TRANSPOSED_IN,
@@ -95,7 +97,8 @@ static void apply(const plan *ego_, R *I, R *O)
 			    ego->comm);
 	       double end = MPI_Wtime();
 	       if (rank == 0)
-	    	   printf("3-MPI_Alltoall: %d, %f\n", nprocs, (end - start));
+	    	   printf("MPI_Alltoall-%d %d %f\n", count, nprocs, (end - start));
+	       count += 1;
 	  }
 	  else {
 //		  	  if (rank == 0)

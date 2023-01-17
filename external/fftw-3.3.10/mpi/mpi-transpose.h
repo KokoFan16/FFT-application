@@ -21,6 +21,8 @@
 #include "ifftw-mpi.h"
 #include <stdio.h>
 
+extern int count;
+
 /* tproblem.c: */
 typedef struct {
      problem super;

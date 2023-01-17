@@ -541,7 +541,8 @@ static void apply(const plan *ego_, R *I, R *O)
 	       double end = MPI_Wtime();
 
 	       if (rank == 0)
-	    	   printf("1-MPI_Alltoall: %d, %f\n", nprocs, (end - start));
+	    	   printf("MPI_Alltoall-%d %d %f\n", count, nprocs, (end - start));
+	       count += 1;
 	  }
 	  else
 	  {
