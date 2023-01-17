@@ -123,7 +123,15 @@ rdft-rank1-bigvec.lo: rdft-rank1-bigvec.c mpi-rdft.h ifftw-mpi.h \
   ../rdft/rdft.h ../rdft/codelet-rdft.h \
   /usr/local/Cellar/mpich/4.0.2_1/include/mpi.h \
   /usr/local/Cellar/mpich/4.0.2_1/include/mpi_proto.h \
-  /usr/local/Cellar/mpich/4.0.2_1/include/mpio.h mpi-transpose.h
+  /usr/local/Cellar/mpich/4.0.2_1/include/mpio.h mpi-transpose.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdio.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_va_list.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/stdio.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_common.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h
 
 mpi-rdft.h:
 
@@ -384,3 +392,19 @@ ifftw-mpi.h:
 /usr/local/Cellar/mpich/4.0.2_1/include/mpio.h:
 
 mpi-transpose.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdio.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_va_list.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/stdio.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_common.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h:

@@ -535,13 +535,17 @@ static void apply(const plan *ego_, R *I, R *O)
 	  if (ego->equal_blocks)
 	  {
 		   double start = MPI_Wtime();
-	       MPI_Alltoall(MPI_IN_PLACE, ego->send_block_sizes[0], FFTW_MPI_TYPE,
-			   O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
-			    ego->comm);
+		   uniform_modified_radix_r_bruck(MPI_IN_PLACE, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+					 (char*)O, ego->recv_block_sizes[0], FFTW_MPI_TYPE, ego->comm);
+//	       MPI_Alltoall(MPI_IN_PLACE, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+//			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
+//			    ego->comm);
 	       double end = MPI_Wtime();
 
 	       if (rank == 0)
-	    	   printf("1-MPI_Alltoall: %d, %f\n", nprocs, (end - start));
+	    	   printf("My-MPI_Alltoall-%d %d %f\n", count, nprocs, (end - start));
+
+	       count += 1;
 	  }
 	  else
 	  {

@@ -131,7 +131,9 @@ api.lo: api.c ../api/api.h ../api/fftw3.h \
   /usr/local/Cellar/mpich/4.0.2_1/include/mpi.h \
   /usr/local/Cellar/mpich/4.0.2_1/include/mpi_proto.h \
   /usr/local/Cellar/mpich/4.0.2_1/include/mpio.h ifftw-mpi.h \
-  mpi-transpose.h mpi-dft.h mpi-rdft.h mpi-rdft2.h
+  mpi-transpose.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h \
+  mpi-dft.h mpi-rdft.h mpi-rdft2.h
 
 ../api/api.h:
 
@@ -410,6 +412,8 @@ fftw3-mpi.h:
 ifftw-mpi.h:
 
 mpi-transpose.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h:
 
 mpi-dft.h:
 
