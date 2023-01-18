@@ -70,7 +70,6 @@ static void apply(const plan *ego_, R *I, R *O)
 		 if (rank == 0)
 			 printf("%d: %s\n", rank, "1--MPI_Alltoall");
 
-
 	       MPI_Alltoall(O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 			    I, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
@@ -101,8 +100,8 @@ static void apply(const plan *ego_, R *I, R *O)
 	       count += 1;
 	  }
 	  else {
-//		  	  if (rank == 0)
-//				 printf("%d: %s\n", rank, "4--MPI_Alltoallv");
+		  	  if (rank == 0)
+				 printf("%d: %s\n", rank, "4--MPI_Alltoallv");
 
 	       MPI_Alltoallv(I, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
