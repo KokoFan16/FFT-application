@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
         if (rank == 0) {
 //            for(int i = 0; i < size; i++)
 //               printf("%f\n", y[i]);
-            printf("TOTAL2 %td %td %d %lf\n", N, size, run, end);
+            printf("TOTAL4 %td %td %d %lf\n", N, size, run, end);
         }
 
         fftw_destroy_plan(forward_plan);
