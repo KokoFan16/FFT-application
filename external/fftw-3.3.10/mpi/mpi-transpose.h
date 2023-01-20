@@ -65,5 +65,5 @@ void XM(transpose_alltoall_register)(planner *p);
 void XM(transpose_recurse_register)(planner *p);
 
 
-void uniform_modified_radix_r_bruck(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm);
+void uniform_modified_inverse_r_bruck(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm);
 

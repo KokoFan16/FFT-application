@@ -69,14 +69,9 @@ static void apply(const plan *ego_, R *I, R *O)
 	  {
 		 if (rank == 0)
 			 printf("%d: %s\n", rank, "1--MPI_Alltoall");
-
-		 uniform_modified_radix_r_bruck((char*)O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
-				 (char*)I, ego->recv_block_sizes[0], FFTW_MPI_TYPE, ego->comm);
-
-
-//	       MPI_Alltoall(O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
-//			    I, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
-//			    ego->comm);
+	       MPI_Alltoall(O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+			    I, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
+			    ego->comm);
 	  }
 	  else {
 
@@ -95,7 +90,7 @@ static void apply(const plan *ego_, R *I, R *O)
 	  if (ego->equal_blocks){
 
 		   double start = MPI_Wtime();
-		   uniform_modified_radix_r_bruck((char*)I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+		   uniform_modified_inverse_r_bruck((char*)I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 					 (char*)O, ego->recv_block_sizes[0], FFTW_MPI_TYPE, ego->comm);
 //	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 //			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
@@ -301,9 +296,17 @@ void XM(transpose_alltoall_register)(planner *p)
 }
 
 
+static int myPow(int x, unsigned int p) {
+	if (p == 0) return 1;
+	if (p == 1) return x;
+
+	int tmp = myPow(x, p/2);
+	if (p%2 == 0) return tmp * tmp;
+	else return x * tmp * tmp;
+}
 
 /// all-to-all imp with r = sqrt(P)
-void uniform_modified_radix_r_bruck(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm) {
+void uniform_modified_inverse_r_bruck(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm) {
 
 	int rank, nprocs;
     MPI_Comm_rank(comm, &rank);
@@ -317,6 +320,7 @@ void uniform_modified_radix_r_bruck(char *sendbuf, int sendcount, MPI_Datatype s
     int unit_size = sendcount * typesize;
     int w = ceil(log(nprocs) / log(r)); // calculate the number of digits when using r-representation
 	int nlpow = pow(r, w-1);
+	int d = (pow(r, w) - nprocs) / nlpow; // calculate the number of highest digits
 
 	char* temp_send;
 	if (sendbuf == MPI_IN_PLACE) {
@@ -327,13 +331,6 @@ void uniform_modified_radix_r_bruck(char *sendbuf, int sendcount, MPI_Datatype s
 		temp_send = sendbuf;
 	}
 
-//	if (rank == 0) {
-//		for (int i = 0; i < nprocs * sendcount; i++) {
-//			double a;
-//			memcpy(&a, &temp_send[i*8], 8);
-//			printf("%f\n", a);
-//		}
-//	}
 
 	for (int i = 0; i < nprocs; i++) {
 		int index = (2*rank-i+nprocs)%nprocs;
@@ -344,15 +341,16 @@ void uniform_modified_radix_r_bruck(char *sendbuf, int sendcount, MPI_Datatype s
 	int di = 0;
 	int ci = 0;
 
+	int comm_steps = (r - 1)*w - d;
 	char* temp_buffer = (char*)malloc(nlpow * unit_size); // temporary buffer
-	int spoint = 1, distance = 1, next_distance = r;
-    for (int x = 0; x < w; x++) {
-    	for (int z = 1; z < r; z++) {
+	int spoint = 1, distance = myPow(r, w-1), next_distance = distance*r;
+    for (int x = w-1; x > -1; x--) {
+    	int ze = (x == w - 1)? r - d: r;
+    	for (int z = ze-1; z > 0; z--) {
     		// get the sent data-blocks
     		// copy blocks which need to be sent at this step
-    		spoint = z * distance;
-    		if (spoint > nprocs - 1) {break;}
     		di = 0; ci = 0;
+			spoint = z * distance;
 			for (int i = spoint; i < nprocs; i += next_distance) {
 				for (int j = i; j < (i+distance); j++) {
 					if (j > nprocs - 1 ) { break; }
@@ -374,9 +372,9 @@ void uniform_modified_radix_r_bruck(char *sendbuf, int sendcount, MPI_Datatype s
     			memcpy(recvbuf+offset, temp_send+(i*unit_size), unit_size);
     		}
     	}
-		distance *= r;
-		next_distance *= r;
+		distance /= r;
+		next_distance /= r;
     }
-
 	free(temp_buffer);
+	free(temp_send);
 }
