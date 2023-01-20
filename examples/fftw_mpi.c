@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
         x = (fftw_complex *)fftw_malloc(size*sizeof(fftw_complex)); // assign input array
         y = (fftw_complex *)fftw_malloc(size*sizeof(fftw_complex)); // assign output array
 
-        printf("sizeof(fftw_complex) == %lu\n", sizeof(fftw_complex));
+//        printf("sizeof(fftw_complex) == %lu\n", sizeof(fftw_complex));
 
         for(int i = 0; i < size; i++)
             x[i] = i;
