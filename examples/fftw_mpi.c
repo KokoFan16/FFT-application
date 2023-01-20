@@ -50,6 +50,8 @@ int main(int argc, char* argv[]) {
         x = (fftw_complex *)fftw_malloc(size*sizeof(fftw_complex)); // assign input array
         y = (fftw_complex *)fftw_malloc(size*sizeof(fftw_complex)); // assign output array
 
+        printf("sizeof(fftw_complex) == %lu\n", sizeof(fftw_complex));
+
         for(int i = 0; i < size; i++)
             x[i] = i;
 
@@ -73,7 +75,7 @@ int main(int argc, char* argv[]) {
         if (rank == 0) {
 //            for(int i = 0; i < size; i++)
 //               printf("%f\n", y[i]);
-            printf("TOTAL1 %td %td %d %lf\n", N, size, run, end);
+            printf("TOTAL1 %td %d %d %lf\n", N, nprocs, run, end);
         }
 
         fftw_destroy_plan(forward_plan);
