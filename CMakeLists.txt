@@ -10,6 +10,12 @@ SET(FFTW3_DIR "${CMAKE_SOURCE_DIR}/external/fftw-3.3.10")
 SET(FFTW3_INCLUDE_DIR  "${FFTW3_DIR}/include")
 include_directories(SYSTEM ${FFTW3_INCLUDE_DIR})
 
-include_directories("${PROJECT_SOURCE_DIR}/examples")
+SET(VIS_DIR "${CMAKE_SOURCE_DIR}/external/profiler")
+SET(VIS_INCLUDE_DIR  "${VIS_DIR}/src")
+include_directories(SYSTEM ${VIS_INCLUDE_DIR})
+
+include_directories("${PROJECT_ScOURCE_DIR}/examples")
+include_directories("${PROJECT_SOURCE_DIR}/external")
 
 add_subdirectory(examples)
+add_subdirectory(external)
