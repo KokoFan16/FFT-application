@@ -10,7 +10,7 @@ link_directories("${FFTW3_DIR}/lib/")
 include_directories(${VIS_INCLUDE_DIR})
 
 add_executable(fftw_mpi_1d ./fftw_mpi.c)
-target_link_libraries(fftw_mpi_1d profiler ${MPI_C_LIBRARIES} fftw3_mpi fftw3)
+target_link_libraries(fftw_mpi_1d ${MPI_C_LIBRARIES} fftw3_mpi fftw3 caliper)
 
 #add_executable(fftw_mpi_2d ./fftw_2d.c)
 #target_link_directories(fftw_mpi_2d PUBLIC "${FFTW3_DIR}/lib/")
