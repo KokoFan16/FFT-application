@@ -15,6 +15,9 @@
 #include <string.h>
 #include <chrono>
 
+extern double logging_cost;
+extern int call_count;
+
 class Params {
 	public:
 		std::string tagloop;

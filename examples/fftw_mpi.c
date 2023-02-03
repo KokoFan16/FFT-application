@@ -10,6 +10,9 @@
 //#include "../external/profiler/src/events.hpp"
 #include <events.hpp>
 
+double logging_cost = 0;
+int call_count = 0;
+
 int main(int argc, char* argv[]) {
     fftw_complex *x; // input array
     fftw_complex *y; // output array
@@ -21,7 +24,7 @@ int main(int argc, char* argv[]) {
     ptrdiff_t size;
     ptrdiff_t local_ni, local_i_start, local_no, local_o_start;
 
-    int RUNS = 1;
+    int RUNS = 20;
     double start, end;
     
     MPI_Init(&argc, &argv);
@@ -37,6 +40,8 @@ int main(int argc, char* argv[]) {
     N = atoi(argv[1]);
 
     fftw_mpi_init(); // initial FFTW MPI Library
+
+    double start_time = MPI_Wtime();
 
     std::string file_name = "FFTW_MPI_1D_profiling";
     Profiler::start(file_name, 0, rank, nprocs, RUNS, 1, nprocs/16);
@@ -109,7 +114,20 @@ int main(int argc, char* argv[]) {
         }
     }
 
-//    Profiler::dump();
+	double end_time = MPI_Wtime();
+	double time = (end_time-start_time);
+
+	double swt = MPI_Wtime();
+    Profiler::dump();
+    double ewt = MPI_Wtime();
+    double write_cost = (ewt - swt);
+
+	double total_time = time + write_cost;
+	double max_time;
+	MPI_Allreduce(&total_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+	if (total_time == max_time || rank == 0) { printf("Viveka-time(%d %d): %f, %f, %f, %d\n", nprocs, rank, time, logging_cost, write_cost, call_count); }
+
 
     fftw_mpi_cleanup(); // clean FFTW MPI Library
     MPI_Finalize();
