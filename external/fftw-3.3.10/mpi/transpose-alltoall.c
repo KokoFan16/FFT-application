@@ -24,8 +24,6 @@
 #include "mpi-transpose.h"
 #include <string.h>
 
-int count = 0;
-
 typedef struct {
      solver super;
      int copy_transposed_in; /* whether to copy the input for TRANSPOSED_IN,
@@ -50,12 +48,6 @@ typedef struct {
 
 static void apply(const plan *ego_, R *I, R *O)
 {
-	 int rank, nprocs;
-	 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	 MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-//	 if (rank == 0)
-//		 printf("%d: %s\n", rank, "transpose-alltoall");
-
      const P *ego = (const P *) ego_;
      plan_rdft *cld1, *cld2, *cld2rest, *cld3;
 
@@ -66,54 +58,28 @@ static void apply(const plan *ego_, R *I, R *O)
 	  
 	  /* transpose chunks globally */
 	  if (ego->equal_blocks)
-	  {
-		 if (rank == 0)
-			 printf("%d: %s\n", rank, "1--MPI_Alltoall");
-
-
 	       MPI_Alltoall(O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 			    I, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
-	  }
-	  else {
-
-			 if (rank == 0)
-				 printf("%d: %s\n", rank, "2--MPI_Alltoallv");
-
+	  else
 	       MPI_Alltoallv(O, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
 			     I, ego->recv_block_sizes, ego->recv_block_offsets,
 			     FFTW_MPI_TYPE,
 			     ego->comm);
-	  }
      }
      else { /* TRANSPOSED_IN, no need to destroy input */
 	  /* transpose chunks globally */
-	  if (ego->equal_blocks){
-
-		   double start = MPI_Wtime();
-
-		   uniform_inverse_isplit_r_bruck(64, (char*)I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
-				(char*)O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
+	  if (ego->equal_blocks)
+	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
-//	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
-//			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
-//			    ego->comm);
-	       double end = MPI_Wtime();
-	       if (rank == 0)
-	    	   printf("TL-MPI_Alltoall-%d %d %f\n", count, nprocs, (end - start));
-	       count += 1;
-	  }
-	  else {
-//		  	  if (rank == 0)
-//				 printf("%d: %s\n", rank, "4--MPI_Alltoallv");
-
+	  else
 	       MPI_Alltoallv(I, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
 			     O, ego->recv_block_sizes, ego->recv_block_offsets,
 			     FFTW_MPI_TYPE,
 			     ego->comm);
-	  }
 	  I = O; /* final transpose (if any) is in-place */
      }
      
@@ -296,161 +262,4 @@ void XM(transpose_alltoall_register)(planner *p)
      int cti;
      for (cti = 0; cti <= 1; ++cti)
 	  REGISTER_SOLVER(p, mksolver(cti));
-}
-
-
-
-static int myPow(int x, unsigned int p) {
-  if (p == 0) return 1;
-  if (p == 1) return x;
-
-  int tmp = myPow(x, p/2);
-  if (p%2 == 0) return tmp * tmp;
-  else return x * tmp * tmp;
-}
-
-// two-layer all-to-all
-void uniform_inverse_isplit_r_bruck(int n, char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm) {
-
-	int rank, nprocs;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &nprocs);
-
-	if (nprocs % n > 0 || n >= nprocs) {
-		if	(rank == 0)
-			printf("ERROR: the process count should be divided by the process count of a group.\n");
-		 MPI_Abort(comm, -1);
-	}
-
-    int typesize;
-    MPI_Type_size(sendtype, &typesize);
-
-    int unit_size = sendcount * typesize;
-
-	char* temp_send;
-	if (sendbuf == MPI_IN_PLACE) {
-		temp_send = (char*)malloc(nprocs * unit_size); // temporary buffer
-		memcpy(temp_send, recvbuf, nprocs * unit_size);
-	}
-	else {
-		temp_send = sendbuf;
-	}
-
-	int ngroup = nprocs / n; // number of groups
-
-	int r = ngroup;
-
-	int sw = ceil(log(n) / log(r)); // required digits for intra-Bruck
-	int sd = (pow(r, sw) - n) / pow(r, sw-1);
-
-	int gw = ceil(log(ngroup) / log(r)); // required digits for inter-Bruck
-	int glpow = pow(r, gw-1); // the largest power of r that smaller than ngroup
-	int gd = (pow(r, gw) - ngroup) / glpow;
-
-	int grank = rank % n; // rank of each process in a group
-	int gid = rank / n; // group id
-
-	int max1 = glpow * n, max2 = pow(r, sw-1)*ngroup;
-	int max_sd = (max1 > max2)? max1: max2; // max send data block count
-
-	char* temp_buffer = (char*)malloc(max_sd * unit_size); // temporary buffer
-
-	// Initial rotation phase for intra-Bruck
-	for (int i = 0; i < ngroup; i++) {
-		int gsp = i*n;
-		for (int j = 0; j < n; j++) {
-			int id = i * n + j;
-			int rid = gsp + (2 * grank - j + n) % n;
-			if (rid == id || recvbuf[id] == '1') { continue; }
-			memcpy(temp_buffer, temp_send+(id*unit_size), unit_size);
-			memcpy(temp_send+(id*unit_size), temp_send+(rid*unit_size), unit_size);
-			memcpy(temp_send+(rid*unit_size), temp_buffer, unit_size);
-			recvbuf[id] = '1';
-			recvbuf[rid] = '1';
-		}
-	}
-
-	int sent_blocks[max_sd];
-	int di = 0, ci = 0;
-
-	// Intra-Bruck
-	int spoint = 1, distance = myPow(r, sw-1), next_distance = distance*r;
-	for (int x = sw-1; x > -1; x--) {
-		int ze = r - 1;
-		if (x == sw - 1) ze = r - 1 - sd;
-		for (int z = ze; z > 0; z--) {
-			di = 0; ci = 0;
-			spoint = z * distance;
-
-			// get the sent data-blocks
-			for (int g = 0; g < ngroup; g++) {
-				for (int i = spoint; i < n; i += next_distance) {
-					for (int j = i; j < (i+distance); j++) {
-						if (j > n - 1 ) { break; }
-						int id = g*n + (j + grank) % n;
-						sent_blocks[di++] = id;
-						memcpy(&temp_buffer[unit_size*ci++], &temp_send[id*unit_size], unit_size);
-					}
-				}
-			}
-
-			// send and receive
-			int recv_proc = gid*n + (grank + spoint) % n; // receive data from rank + 2^step process
-			int send_proc = gid*n + (grank - spoint + n) % n; // send data from rank - 2^k process
-
-			long long comm_size = di * unit_size;
-			MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, recvbuf, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE);
-
-			// replace with received data
-			for (int i = 0; i < di; i++) {
-				long long offset = sent_blocks[i] * unit_size;
-				memcpy(temp_send+offset, recvbuf+(i*unit_size), unit_size);
-			}
-		}
-		distance /= r;
-		next_distance /= r;
-	}
-
-    unit_size = n * sendcount * typesize;
-	// Initial rotation phase for inter-Bruck
-	for (int i = 0; i < ngroup; i++) {
-		int index = (2 * gid - i + ngroup) % ngroup;
-		memcpy(&recvbuf[index*unit_size], &temp_send[i*unit_size], unit_size);
-	}
-
-	// Inter-Bruck
-	spoint = 1, distance = myPow(r, gw-1), next_distance = distance*r;
-    for (int x = gw-1; x > -1; x--) {
-		int ze = r - 1;
-		if (x == gw - 1) ze = r - 1 - gd;
-    	for (int z = ze; z > 0; z--) {
-    		spoint = z * distance;
-
-			// get the sent data-blocks
-			di = 0; ci = 0;
-			for (int i = spoint; i < ngroup; i += next_distance) {
-				for (int j = i; j < (i+distance); j++) {
-					if (j > ngroup - 1 ) { break; }
-					int id = (j + gid) % ngroup;
-					sent_blocks[di++] = id;
-					memcpy(&temp_buffer[unit_size*ci++], &recvbuf[id*unit_size], unit_size);
-				}
-			}
-
-    		int recv_proc = (gid*n + (grank + spoint*n)) % nprocs; // receive data from rank - 2^step process
-    		int send_proc = (gid*n + (grank - spoint*n + nprocs)) % nprocs; // send data from rank + 2^k process
-
-    		long long comm_size = di * unit_size;
-    		MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, temp_send, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE);
-
-    		for (int i = 0; i < di; i++) {
-    			long long offset = sent_blocks[i] * unit_size;
-    			memcpy(recvbuf+offset, temp_send+(i*unit_size), unit_size);
-    		}
-    	}
-		distance /= r;
-		next_distance /= r;
-    }
-
-	free(temp_buffer);
 }

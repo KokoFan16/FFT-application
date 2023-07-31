@@ -19,10 +19,6 @@
  */
 
 #include "ifftw-mpi.h"
-#include <stdio.h>
-#include <math.h>
-
-extern int count;
 
 /* tproblem.c: */
 typedef struct {
@@ -63,7 +59,3 @@ int XM(mkplans_posttranspose)(const problem_mpi_transpose *p, planner *plnr,
 void XM(transpose_pairwise_register)(planner *p);
 void XM(transpose_alltoall_register)(planner *p);
 void XM(transpose_recurse_register)(planner *p);
-
-
-void uniform_inverse_isplit_r_bruck(int n, char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm);
-
