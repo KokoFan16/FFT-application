@@ -24,6 +24,8 @@
 #include "mpi-transpose.h"
 #include <string.h>
 
+int count = 0;
+
 typedef struct {
      solver super;
      int copy_transposed_in; /* whether to copy the input for TRANSPOSED_IN,
@@ -48,6 +50,12 @@ typedef struct {
 
 static void apply(const plan *ego_, R *I, R *O)
 {
+	 int rank, nprocs;
+	 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	 MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+//	 if (rank == 0)
+//		 printf("%d: %s\n", rank, "transpose-alltoall");
+
      const P *ego = (const P *) ego_;
      plan_rdft *cld1, *cld2, *cld2rest, *cld3;
 
@@ -58,28 +66,51 @@ static void apply(const plan *ego_, R *I, R *O)
 	  
 	  /* transpose chunks globally */
 	  if (ego->equal_blocks)
+	  {
+		 if (rank == 0)
+			 printf("%d: %s\n", rank, "1--MPI_Alltoall");
 	       MPI_Alltoall(O, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 			    I, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
-	  else
+	  }
+	  else {
+
+			 if (rank == 0)
+				 printf("%d: %s\n", rank, "2--MPI_Alltoallv");
+
 	       MPI_Alltoallv(O, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
 			     I, ego->recv_block_sizes, ego->recv_block_offsets,
 			     FFTW_MPI_TYPE,
 			     ego->comm);
+	  }
      }
      else { /* TRANSPOSED_IN, no need to destroy input */
 	  /* transpose chunks globally */
-	  if (ego->equal_blocks)
-	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
-			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
-			    ego->comm);
-	  else
+	  if (ego->equal_blocks){
+
+		   double start = MPI_Wtime();
+		   uniform_modified_inverse_r_bruck((char*)I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+					 (char*)O, ego->recv_block_sizes[0], FFTW_MPI_TYPE, ego->comm);
+//	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+//			    O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
+//			    ego->comm);
+	       double end = MPI_Wtime();
+	       if (rank == 0)
+	    	   printf("My-MPI_Alltoall-%d %d %f\n", count, nprocs, (end - start));
+
+	       count += 1;
+	  }
+	  else {
+//		  	  if (rank == 0)
+//				 printf("%d: %s\n", rank, "4--MPI_Alltoallv");
+
 	       MPI_Alltoallv(I, ego->send_block_sizes, ego->send_block_offsets,
 			     FFTW_MPI_TYPE,
 			     O, ego->recv_block_sizes, ego->recv_block_offsets,
 			     FFTW_MPI_TYPE,
 			     ego->comm);
+	  }
 	  I = O; /* final transpose (if any) is in-place */
      }
      
@@ -262,4 +293,88 @@ void XM(transpose_alltoall_register)(planner *p)
      int cti;
      for (cti = 0; cti <= 1; ++cti)
 	  REGISTER_SOLVER(p, mksolver(cti));
+}
+
+
+static int myPow(int x, unsigned int p) {
+	if (p == 0) return 1;
+	if (p == 1) return x;
+
+	int tmp = myPow(x, p/2);
+	if (p%2 == 0) return tmp * tmp;
+	else return x * tmp * tmp;
+}
+
+/// all-to-all imp with r = sqrt(P)
+void uniform_modified_inverse_r_bruck(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm) {
+
+	int rank, nprocs;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &nprocs);
+
+    int typesize;
+    MPI_Type_size(sendtype, &typesize);
+
+    int r = sqrt(nprocs);
+
+    int unit_size = sendcount * typesize;
+    int w = ceil(log(nprocs) / log(r)); // calculate the number of digits when using r-representation
+	int nlpow = pow(r, w-1);
+	int d = (pow(r, w) - nprocs) / nlpow; // calculate the number of highest digits
+
+	char* temp_send;
+	if (sendbuf == MPI_IN_PLACE) {
+		temp_send = (char*)malloc(nprocs * unit_size); // temporary buffer
+		memcpy(temp_send, recvbuf, nprocs * unit_size);
+	}
+	else {
+		temp_send = sendbuf;
+	}
+
+
+	for (int i = 0; i < nprocs; i++) {
+		int index = (2*rank-i+nprocs)%nprocs;
+		memcpy(recvbuf+(index*unit_size), temp_send+(i*unit_size), unit_size);
+	}
+
+	int sent_blocks[nlpow];
+	int di = 0;
+	int ci = 0;
+
+	int comm_steps = (r - 1)*w - d;
+	char* temp_buffer = (char*)malloc(nlpow * unit_size); // temporary buffer
+	int spoint = 1, distance = myPow(r, w-1), next_distance = distance*r;
+    for (int x = w-1; x > -1; x--) {
+    	int ze = (x == w - 1)? r - d: r;
+    	for (int z = ze-1; z > 0; z--) {
+    		// get the sent data-blocks
+    		// copy blocks which need to be sent at this step
+    		di = 0; ci = 0;
+			spoint = z * distance;
+			for (int i = spoint; i < nprocs; i += next_distance) {
+				for (int j = i; j < (i+distance); j++) {
+					if (j > nprocs - 1 ) { break; }
+					int id = (j + rank) % nprocs;
+					sent_blocks[di++] = id;
+					memcpy(&temp_buffer[unit_size*ci++], &recvbuf[id*unit_size], unit_size);
+				}
+			}
+
+    		// send and receive
+    		int recv_proc = (rank + spoint) % nprocs; // receive data from rank - 2^step process
+    		int send_proc = (rank - spoint + nprocs) % nprocs; // send data from rank + 2^k process
+    		long long comm_size = di * unit_size;
+    		MPI_Sendrecv(temp_buffer, comm_size, MPI_CHAR, send_proc, 0, temp_send, comm_size, MPI_CHAR, recv_proc, 0, comm, MPI_STATUS_IGNORE);
+
+    		// replace with received data
+    		for (int i = 0; i < di; i++) {
+    			long long offset = sent_blocks[i] * unit_size;
+    			memcpy(recvbuf+offset, temp_send+(i*unit_size), unit_size);
+    		}
+    	}
+		distance /= r;
+		next_distance /= r;
+    }
+	free(temp_buffer);
+	free(temp_send);
 }
