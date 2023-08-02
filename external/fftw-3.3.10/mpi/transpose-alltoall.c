@@ -93,7 +93,7 @@ static void apply(const plan *ego_, R *I, R *O)
 
 		   double start = MPI_Wtime();
 
-		   uniform_inverse_isplit_r_bruck(4, (char*)I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
+		   uniform_inverse_isplit_r_bruck(32, (char*)I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
 				(char*)O, ego->recv_block_sizes[0], FFTW_MPI_TYPE,
 			    ego->comm);
 //	       MPI_Alltoall(I, ego->send_block_sizes[0], FFTW_MPI_TYPE,
